@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CNR City/Camera Dashboard</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    :root{
+      --bg:#f6f8fc; --card:#fff; --text:#0f172a; --muted:#64748b; --border:#e5e7eb;
+      --blue:#2563eb; --blue2:#1d4ed8; --shadow:0 10px 30px rgba(15,23,42,.08); --radius:14px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+      background:radial-gradient(1200px 600px at 20% 0%, #eaf2ff, transparent 60%),
+                 radial-gradient(1000px 600px at 90% 20%, #eefbf3, transparent 60%),
+                 var(--bg);
+      color:var(--text); padding:22px 16px 40px;
+    }
+    .container{max-width:1240px;margin:0 auto;display:grid;gap:16px}
+    .topbar{
+      background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+      box-shadow:var(--shadow);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px
+    }
+    .brand{display:flex;align-items:center;gap:12px;min-width:0}
+    .logo{
+      width:42px;height:42px;border-radius:12px;display:grid;place-items:center;
+      background:linear-gradient(135deg,var(--blue),#60a5fa);color:#fff;box-shadow:0 10px 25px rgba(37,99,235,.25);flex:0 0 auto
+    }
+    .brand h1{margin:0;font-size:18px;letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .actions{display:flex;align-items:center;gap:10px;flex:0 0 auto}
+
+    button,.select{
+      border:1px solid var(--border);border-radius:12px;padding:10px 12px;
+      font-weight:800;font-size:13px;box-shadow:0 6px 14px rgba(15,23,42,.05);
+      transition:140ms ease;white-space:nowrap
+    }
+    button{background:#fff;cursor:pointer}
+    button:hover{transform:translateY(-1px);box-shadow:0 10px 20px rgba(15,23,42,.08)}
+    .ghost{background:#f8fafc}
+
+    .select{background:#f8fafc;cursor:pointer;outline:none}
+    .select:focus{border-color:rgba(37,99,235,.5);box-shadow:0 0 0 4px rgba(37,99,235,.12)}
+
+    .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+    @media (max-width:740px){.stats{grid-template-columns:1fr}}
+    .stat{
+      background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);
+      padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px
+    }
+    .label{color:var(--muted);font-size:12px;margin-bottom:4px}
+    .value{font-size:22px;font-weight:900;margin:0}
+    .stat-right{display:flex;align-items:center;gap:10px;flex:0 0 auto}
+
+    .grid{display:grid;grid-template-columns:1.05fr 1.25fr;gap:12px}
+    @media (max-width:980px){.grid{grid-template-columns:1fr}}
+    .card{
+      background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);
+      overflow:hidden;display:flex;flex-direction:column;min-height:560px
+    }
+    .card-header{
+      padding:12px 14px;border-bottom:1px solid var(--border);
+      display:flex;align-items:center;justify-content:space-between;gap:10px
+    }
+    .card-header h2{margin:0;font-size:14px;letter-spacing:.2px}
+    .sub{margin-top:2px;font-size:12px;color:var(--muted)}
+    .card-body{padding:12px 14px 14px;flex:1;min-height:0}
+
+    .table-controls{display:flex;align-items:center;gap:10px;flex-wrap:nowrap;white-space:nowrap}
+    .search-wrap{position:relative;width:min(520px,100%)}
+    #search{
+      width:100%;padding:11px 12px 11px 40px;border-radius:12px;border:1px solid var(--border);
+      background:#fbfdff;outline:none;transition:140ms ease;font-size:14px
+    }
+    #search:focus{border-color:rgba(37,99,235,.5);box-shadow:0 0 0 4px rgba(37,99,235,.12)}
+    .search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);opacity:.55;pointer-events:none}
+
+    table{width:100%;border-collapse:separate;border-spacing:0;border:1px solid var(--border);border-radius:12px;overflow:hidden}
+    thead th{
+      text-align:left;background:#f8fafc;color:#334155;font-size:12px;letter-spacing:.3px;text-transform:uppercase;
+      padding:10px 10px;border-bottom:1px solid var(--border)
+    }
+    tbody td{padding:10px 10px;border-bottom:1px solid var(--border);font-size:13px}
+    tbody tr:hover{background:#f8fafc}
+    tbody tr:last-child td{border-bottom:none}
+    .name{font-weight:900}
+    .city{color:var(--muted);font-weight:800}
+
+    /* Map should fill the whole right card */
+    .map-card .card-body{ padding: 0; }
+    #map{ width:100%; height:100%; min-height: 560px; border:0; border-radius:0; }
+
+    .map-controls{display:flex;align-items:center;gap:10px;flex-wrap:nowrap;white-space:nowrap}
+    .map-controls .select{flex:1 1 220px;min-width:180px;max-width:320px}
+
+    .leaflet-popup-content-wrapper{border-radius:12px;border:1px solid var(--border);box-shadow:0 14px 30px rgba(15,23,42,.12)}
+    .leaflet-tooltip{
+      border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 20px rgba(15,23,42,.08);
+      padding:6px 10px;font-weight:900;color:#0f172a;background:#fff
+    }
+
+    /* Two-table layout when a city is selected */
+    .stack{display:grid;gap:12px}
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo">🗺️</div>
+        <div style="min-width:0"><h1>CNR City/Camera Dashboard</h1></div>
+      </div>
+      <div class="actions">
+        <button class="ghost" onclick="resetAll()">Show All</button>
+      </div>
+    </header>
+
+    <section class="stats">
+      <div class="stat">
+        <div>
+          <div class="label">Total Cameras</div>
+          <p class="value" id="statTotal">0</p>
+        </div>
+      </div>
+
+      <div class="stat">
+        <div>
+          <div class="label">Cities</div>
+          <p class="value" id="statCities">0</p>
+        </div>
+        <div class="stat-right">
+          <!-- ✅ Normal / All Cities / City list -->
+          <select id="citySelect" class="select" aria-label="Select city">
+            <option value="__normal__" selected>Normal</option>
+            <option value="__all__">All Cities</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <main class="grid">
+      <!-- TABLE CARD -->
+      <section class="card" aria-label="Table">
+        <div class="card-header">
+          <div>
+            <h2 id="tableTitle">Cameras</h2>
+            <div id="tableSubtitle" class="sub"></div>
+          </div>
+
+          <div class="table-controls">
+            <div class="search-wrap" style="max-width:320px;">
+              <span class="search-icon">🔎</span>
+              <input id="search" type="text" placeholder="Search camera or city..." />
+            </div>
+
+            <select id="orderSelect" class="select" aria-label="Order table by">
+              <option value="camera_desc" selected>Camera Name (Z→A)</option>
+              <option value="camera_asc">Camera Name (A→Z)</option>
+              <option value="city_asc">City (A→Z)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="card-body">
+          <!-- When city selected: show 2 tables -->
+          <div id="cityTables" class="stack" style="display:none;">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:70%;">City</th>
+                  <th style="width:30%;">Total Cameras</th>
+                </tr>
+              </thead>
+              <tbody id="citySummaryBody"></tbody>
+            </table>
+
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:70%;">Camera</th>
+                  <th style="width:30%;">City</th>
+                </tr>
+              </thead>
+              <tbody id="cityCameraBody"></tbody>
+            </table>
+          </div>
+
+          <!-- Default (Normal / All Cities summary): single table -->
+          <table id="cameraTable">
+            <thead id="cameraTableHead"></thead>
+            <tbody id="cameraTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- MAP CARD -->
+      <section class="card map-card" aria-label="Map">
+        <div class="card-header">
+          <div>
+            <h2>Map</h2>
+            <div id="mapSubtitle" class="sub">City bubbles show cameras.</div>
+          </div>
+
+          <div class="map-controls">
+            <select id="mapMode" class="select" aria-label="Map filter mode">
+              <option value="city" selected>Filter by City</option>
+              <option value="camera">Filter by Camera</option>
+            </select>
+            <button class="ghost" onclick="fitNJ()">Fit NJ</button>
+          </div>
+        </div>
+
+        <div class="card-body">
+          <div id="map"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    // === FILES (same folder as this HTML) ===
+    const CITY_GEO_CSV = "camera_geo_filled.csv"; // index,camera_name,City,lat,lon
+    const CAM_INDI_CSV = "cam_indi.csv";          // must include camera_name + coordinates
+
+    // Fit NJ bounds (no clipping)
+    const NJ_SW = [38.85, -75.60];
+    const NJ_NE = [41.36, -73.80];
+
+    // Joined camera records: {camera_name, city, lat, lng, lat_cam, lng_cam}
+    let cameras = [];
+
+    // Derived
+    let cityIndex = new Map();    // city -> cameras[]
+    let cityCenters = new Map();  // city -> [lat,lng]
+
+    // Map
+    let map, markersLayer;
+
+    // UI state
+    let selectedCity = "";
+    let showAllCitiesSummary = false; // true only when "__all__" selected
+    let orderMode = "camera_desc";
+    let mapMode = "city";
+
+    // ---------- CSV parsing helpers ----------
+    function parseCSV(text){
+      const lines = text.trim().split("\n");
+      const headers = lines[0].split(",").map(h => h.trim());
+      return lines.slice(1).map(line => {
+        const vals = line.split(",");
+        const obj = {};
+        headers.forEach((h,i) => obj[h] = (vals[i] ?? "").trim());
+        return obj;
+      });
+    }
+    function norm(v){ return String(v ?? "").trim(); }
+    function cmp(a,b){ return norm(a).localeCompare(norm(b), undefined, { sensitivity:"base" }); }
+
+    // Auto-detect lat/lng columns for cam_indi.csv
+    function pickLat(obj){ return obj.lat_cam ?? obj.cam_lat ?? obj.lat ?? obj.latitude ?? ""; }
+    function pickLng(obj){ return obj.lng_cam ?? obj.cam_lng ?? obj.cam_lon ?? obj.lon_cam ?? obj.lng ?? obj.lon ?? obj.longitude ?? ""; }
+
+    // ---------- Load & join two CSVs ----------
+    Promise.all([
+      fetch(CITY_GEO_CSV + "?nocache=" + Date.now()).then(r => r.text()),
+      fetch(CAM_INDI_CSV + "?nocache=" + Date.now()).then(r => r.text()),
+    ])
+    .then(([cityGeoText, camIndiText]) => {
+      const cityRows = parseCSV(cityGeoText);
+      const indiRows = parseCSV(camIndiText);
+
+      const cityByCamera = new Map();
+      for (const r of cityRows){
+        const camera_name = norm(r.camera_name);
+        if (!camera_name) continue;
+        const city = norm(r.City ?? r.city);
+        const lat = norm(r.lat);
+        const lng = norm(r.lon ?? r.lng);
+        cityByCamera.set(camera_name, { city, lat, lng });
+      }
+
+      const indiByCamera = new Map();
+      for (const r of indiRows){
+        const camera_name = norm(r.camera_name);
+        if (!camera_name) continue;
+        const lat_cam = norm(pickLat(r));
+        const lng_cam = norm(pickLng(r));
+        indiByCamera.set(camera_name, { lat_cam, lng_cam });
+      }
+
+      cameras = [];
+      for (const [camera_name, cityRec] of cityByCamera.entries()){
+        const indi = indiByCamera.get(camera_name) || { lat_cam:"", lng_cam:"" };
+        cameras.push({
+          camera_name,
+          city: cityRec.city,
+          lat: cityRec.lat,
+          lng: cityRec.lng,
+          lat_cam: indi.lat_cam,
+          lng_cam: indi.lng_cam,
+        });
+      }
+
+      buildCityIndexAndCenters();
+      updateStats();
+      populateCityDropdown();
+      initMapIfNeeded();
+      bindUI();
+      renderEverything();
+
+      setTimeout(() => {
+        fitNJ();
+        ensureMapSized();
+      }, 300);
+    })
+    .catch(err => console.error("CSV load/join error:", err));
+
+    function buildCityIndexAndCenters(){
+      cityIndex = new Map();
+      cityCenters = new Map();
+
+      for (const r of cameras){
+        const city = norm(r.city);
+        if (!city) continue;
+        if (!cityIndex.has(city)) cityIndex.set(city, []);
+        cityIndex.get(city).push(r);
+      }
+
+      for (const [city, cams] of cityIndex.entries()){
+        let sumLat=0, sumLng=0, n=0;
+        for (const c of cams){
+          const lat = Number(c.lat);
+          const lng = Number(c.lng);
+          if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+          sumLat += lat; sumLng += lng; n++;
+        }
+        if (n) cityCenters.set(city, [sumLat/n, sumLng/n]);
+      }
+    }
+
+    function updateStats(){
+      document.getElementById("statTotal").textContent = cameras.length;
+      document.getElementById("statCities").textContent = cityIndex.size;
+    }
+
+    function populateCityDropdown(){
+      const sel = document.getElementById("citySelect");
+      const cities = Array.from(cityIndex.keys()).sort((a,b) => cmp(a,b));
+
+      sel.innerHTML =
+        `<option value="__normal__" selected>Normal</option>` +
+        `<option value="__all__">All Cities</option>` +
+        cities.map(c => `<option value="${escapeAttr(c)}">${escapeHtml(c)}</option>`).join("");
+    }
+
+    function bindUI(){
+      document.getElementById("citySelect").addEventListener("change", (e) => {
+        const val = e.target.value || "__normal__";
+
+        if (val === "__normal__") {
+          selectedCity = "";
+          showAllCitiesSummary = false;
+        } else if (val === "__all__") {
+          selectedCity = "";
+          showAllCitiesSummary = true;
+        } else {
+          selectedCity = val;
+          showAllCitiesSummary = false;
+        }
+
+        document.getElementById("search").value = "";
+        renderEverything();
+        ensureMapSized();
+      });
+
+      document.getElementById("orderSelect").addEventListener("change", (e) => {
+        orderMode = e.target.value;
+        renderEverything();
+      });
+
+      document.getElementById("mapMode").addEventListener("change", (e) => {
+        mapMode = e.target.value === "camera" ? "camera" : "city";
+        renderMap();
+        ensureMapSized();
+      });
+
+      document.getElementById("search").addEventListener("input", () => {
+        if (selectedCity || showAllCitiesSummary) return;
+        renderEverything();
+      });
+
+      window.addEventListener("resize", () => ensureMapSized());
+    }
+
+    function ensureMapSized(){
+      if (!map) return;
+      setTimeout(() => map.invalidateSize(true), 50);
+    }
+
+    function renderEverything(){
+      renderTable();
+      renderMap();
+
+      if (selectedCity){
+        const center = cityCenters.get(selectedCity);
+        if (center && map) {
+          map.setView(center, 12);
+          ensureMapSized();
+        }
+      }
+    }
+
+    // ---------- Table ----------
+    function sortRows(rows){
+      const copy = [...rows];
+      if (orderMode === "city_asc"){
+        copy.sort((a,b) => {
+          const c = cmp(a.city, b.city);
+          if (c !== 0) return c;
+          return cmp(a.camera_name, b.camera_name);
+        });
+        return copy;
+      }
+      if (orderMode === "camera_asc"){
+        copy.sort((a,b) => cmp(a.camera_name, b.camera_name));
+        return copy;
+      }
+      copy.sort((a,b) => cmp(b.camera_name, a.camera_name));
+      return copy;
+    }
+
+    function renderTable(){
+      const cityTables = document.getElementById("cityTables");
+      const cameraTable = document.getElementById("cameraTable");
+
+      // City selected: show 2 tables
+      if (selectedCity){
+        cityTables.style.display = "grid";
+        cameraTable.style.display = "none";
+
+        document.getElementById("tableTitle").textContent = "City View";
+
+        const cams = cityIndex.get(selectedCity) || [];
+
+        document.getElementById("citySummaryBody").innerHTML = `
+          <tr>
+            <td class="name">${escapeHtml(selectedCity)}</td>
+            <td class="city">${cams.length}</td>
+          </tr>
+        `;
+
+        const sorted = sortRows(cams);
+        document.getElementById("cityCameraBody").innerHTML = sorted.map(r => `
+          <tr>
+            <td class="name">${escapeHtml(r.camera_name)}</td>
+            <td class="city">${escapeHtml(r.city)}</td>
+          </tr>
+        `).join("");
+
+        return;
+      }
+
+      // All Cities summary view
+      if (showAllCitiesSummary){
+        cityTables.style.display = "none";
+        cameraTable.style.display = "table";
+
+        document.getElementById("tableTitle").textContent = "Cities";
+
+        document.getElementById("cameraTableHead").innerHTML = `
+          <tr><th style="width:70%;">City</th><th style="width:30%;">Total Cameras</th></tr>
+        `;
+
+        const rows = Array.from(cityIndex.entries())
+          .map(([city, cams]) => ({ city, total: cams.length }))
+          .sort((a,b) => cmp(a.city, b.city));
+
+        document.getElementById("cameraTableBody").innerHTML = rows.map(r => `
+          <tr>
+            <td class="name">${escapeHtml(r.city)}</td>
+            <td class="city">${r.total}</td>
+          </tr>
+        `).join("");
+
+        return;
+      }
+
+      // Normal view: camera list
+      cityTables.style.display = "none";
+      cameraTable.style.display = "table";
+
+      document.getElementById("tableTitle").textContent = "Cameras";
+
+      document.getElementById("cameraTableHead").innerHTML = `
+        <tr><th style="width:70%;">Camera</th><th style="width:30%;">City</th></tr>
+      `;
+
+      const q = (document.getElementById("search").value || "").toLowerCase().trim();
+      let rows = cameras;
+
+      if (q){
+        rows = cameras.filter(r =>
+          norm(r.camera_name).toLowerCase().includes(q) ||
+          norm(r.city).toLowerCase().includes(q)
+        );
+      }
+
+      rows = sortRows(rows);
+
+      document.getElementById("cameraTableBody").innerHTML = rows.map(r => `
+        <tr>
+          <td class="name">${escapeHtml(r.camera_name)}</td>
+          <td class="city">${escapeHtml(r.city)}</td>
+        </tr>
+      `).join("");
+    }
+
+    // ---------- Map ----------
+    function initMapIfNeeded(){
+      if (typeof L === "undefined") { setTimeout(initMapIfNeeded, 50); return; }
+      if (map) return;
+
+      map = L.map("map", { zoomControl:true }).setView([40.0583, -74.4057], 8);
+
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+      }).addTo(map);
+
+      markersLayer = L.layerGroup().addTo(map);
+      ensureMapSized();
+    }
+
+    function renderMap(){
+      initMapIfNeeded();
+      if (!markersLayer) return;
+      markersLayer.clearLayers();
+
+      if (selectedCity){
+        document.getElementById("mapSubtitle").textContent =
+          mapMode === "camera"
+            ? `Showing cameras in ${selectedCity}.`
+            : `Showing ${selectedCity}.`;
+
+        if (mapMode === "camera") renderCameraMarkersForCity(selectedCity);
+        else renderCityMarkerOnly(selectedCity);
+
+        ensureMapSized();
+        return;
+      }
+
+      if (mapMode === "camera"){
+        document.getElementById("mapSubtitle").textContent = "Camera markers show individual camera locations.";
+        renderAllCameraMarkers();
+      } else {
+        document.getElementById("mapSubtitle").textContent = "City bubbles show cameras.";
+        renderAllCityMarkers();
+      }
+
+      ensureMapSized();
+    }
+
+    function renderAllCityMarkers(){
+      for (const [city, cams] of cityIndex.entries()){
+        const center = cityCenters.get(city);
+        if (!center) continue;
+
+        const count = cams.length;
+        const marker = L.marker(center, { icon: cityBubbleIcon(count) }).addTo(markersLayer);
+        marker.bindTooltip(`${city} (${count})`, { direction:"top", offset:[0,-10] });
+
+        marker.on("click", () => {
+          const sel = document.getElementById("citySelect");
+          sel.value = city;
+          selectedCity = city;
+          showAllCitiesSummary = false;
+          document.getElementById("search").value = "";
+          renderEverything();
+          marker.bindPopup(`<b>${escapeHtml(city)}</b><br/>${count} cameras`).openPopup();
+        });
+      }
+    }
+
+    function renderCityMarkerOnly(city){
+      const center = cityCenters.get(city);
+      const cams = cityIndex.get(city) || [];
+      if (!center) return;
+
+      const marker = L.marker(center, { icon: cityBubbleIcon(cams.length) }).addTo(markersLayer);
+      marker.bindTooltip(`${city} (${cams.length})`, { direction:"top", offset:[0,-10] });
+    }
+
+    function renderAllCameraMarkers(){
+      for (const cam of cameras){
+        const lat = Number(cam.lat_cam);
+        const lng = Number(cam.lng_cam);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+
+        const marker = L.marker([lat, lng], { icon: cameraDotIcon() }).addTo(markersLayer);
+        marker.bindTooltip(`${cam.camera_name} • ${cam.city}`, { direction:"top", offset:[0,-10] });
+      }
+    }
+
+    function renderCameraMarkersForCity(city){
+      const cams = cityIndex.get(city) || [];
+      for (const cam of cams){
+        const lat = Number(cam.lat_cam);
+        const lng = Number(cam.lng_cam);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+
+        const marker = L.marker([lat, lng], { icon: cameraDotIcon() }).addTo(markersLayer);
+        marker.bindTooltip(`${cam.camera_name} • ${cam.city}`, { direction:"top", offset:[0,-10] });
+      }
+    }
+
+    function cityBubbleIcon(count){
+      const size = count >= 10 ? 52 : (count >= 5 ? 46 : 40);
+      return L.divIcon({
+        className: "",
+        html: `
+          <div style="
+            width:${size}px;height:${size}px;border-radius:999px;display:grid;place-items:center;
+            background: rgba(37,99,235,0.92);color:white;border:3px solid rgba(255,255,255,0.95);
+            box-shadow: 0 14px 28px rgba(37,99,235,0.22);font-weight:900;font-size:13px;
+          ">${count}</div>
+        `,
+        iconSize: [size, size],
+        iconAnchor: [size/2, size/2]
+      });
+    }
+
+    function cameraDotIcon(){
+      const size = 18;
+      return L.divIcon({
+        className: "",
+        html: `
+          <div style="
+            width:${size}px;height:${size}px;border-radius:999px;
+            background: rgba(14,165,233,0.92);
+            border:3px solid rgba(255,255,255,0.95);
+            box-shadow: 0 12px 22px rgba(15,23,42,0.18);
+          "></div>
+        `,
+        iconSize: [size, size],
+        iconAnchor: [size/2, size/2]
+      });
+    }
+
+    function fitNJ(){
+      if (!map || typeof L === "undefined") return;
+      map.fitBounds(L.latLngBounds(NJ_SW, NJ_NE));
+      ensureMapSized();
+    }
+
+    function resetAll(){
+      selectedCity = "";
+      showAllCitiesSummary = false;
+      orderMode = "camera_desc";
+      mapMode = "city";
+
+      document.getElementById("citySelect").value = "__normal__";
+      document.getElementById("orderSelect").value = "camera_desc";
+      document.getElementById("mapMode").value = "city";
+      document.getElementById("search").value = "";
+
+      renderEverything();
+      fitNJ();
+    }
+
+    // ---------- utils ----------
+    function escapeHtml(str){
+      return String(str)
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#039;");
+    }
+    function escapeAttr(str){
+      return String(str).replaceAll('"', "&quot;");
+    }
+  </script>
+</body>
+</html>
