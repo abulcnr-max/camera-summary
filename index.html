@@ -41,14 +41,16 @@
       z-index: 1;
     }
 
+    /* ✅ Increased padding and gap for larger header */
     .topbar{
       background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
-      box-shadow:var(--shadow);padding:22px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px
+      box-shadow:var(--shadow);padding:28px 24px;display:flex;align-items:center;justify-content:space-between;gap:20px
     }
-    .brand{display:flex;align-items:center;gap:12px;min-width:0}
+    .brand{display:flex;align-items:center;gap:16px;min-width:0}
 
+    /* ✅ Increased logo size to 80px */
     .logo{
-      width:64px;height:64px;border-radius:16px;
+      width:80px;height:80px;border-radius:20px;
       display:grid;place-items:center;background:#fff;
       border: 1px solid rgba(15,23,42,0.08);
       box-shadow:0 10px 25px rgba(15,23,42,.08);
@@ -56,10 +58,13 @@
     }
     .logo img{width:100%;height:100%;object-fit:cover;display:block}
 
-    .brand h1{margin:0;font-size:26px;letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    /* ✅ Increased title font size to 30px */
+    .brand h1{margin:0;font-size:30px;letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    
+    /* ✅ Increased subtitle font size to 16px */
     .brand-subtitle{
-      margin-top: 2px;
-      font-size: 14px;
+      margin-top: 4px;
+      font-size: 16px;
       font-weight: 700;
       color: var(--muted);
       white-space: nowrap;
@@ -191,7 +196,6 @@
     </section>
 
     <main class="grid">
-      <!-- TABLE CARD -->
       <section class="card" aria-label="Table">
         <div class="card-header">
           <div>
@@ -214,7 +218,6 @@
         </div>
 
         <div class="card-body">
-          <!-- When city selected: show 2 tables -->
           <div id="cityTables" class="stack" style="display:none;">
             <table>
               <thead>
@@ -237,7 +240,6 @@
             </table>
           </div>
 
-          <!-- Default (Normal / All Cities summary): single table -->
           <table id="cameraTable">
             <thead id="cameraTableHead"></thead>
             <tbody id="cameraTableBody"></tbody>
@@ -245,7 +247,6 @@
         </div>
       </section>
 
-      <!-- MAP CARD -->
       <section class="card map-card" aria-label="Map">
         <div class="card-header">
           <div>
